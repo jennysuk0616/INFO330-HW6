@@ -3,8 +3,8 @@ import sys      # This helps with command-line parameters
 
 # All the "against" column suffixes:
 types = ["bug","dark","dragon","electric","fairy","fight",
-    "fire","flying","ghost","grass","ground","ice","normal",
-    "poison","psychic","rock","steel","water"]
+        "fire","flying","ghost","grass","ground","ice","normal",
+        "poison","psychic","rock","steel","water"]
 
 # Take six parameters on the command-line
 if len(sys.argv) < 6:
@@ -15,6 +15,31 @@ team = []
 for i, arg in enumerate(sys.argv):
     if i == 0:
         continue
+    
+    pokemon_identifier = arg
+    
+    # Connect to the pokemon database
+    conn = sqlite3.connect('../pokemon.sqlite')
+    cursor = conn.cursor()
+    
+    # Retrieve the Pokemon information from the database
+    cursor.execute("SELECT name, type1_name, type2_name, " + ", ".join(["against_" + type_ for type_ in types]) + " FROM pokemon_types_battle_view WHERE pokedex_number = ? OR name = ?", (pokemon_identifier, pokemon_identifier))
+    result = cursor.fetchone()
+    
+    if result:
+        name, type1, type2, *against = result[3:]
+    
+        # Determine the strengths and weaknesses of the Pokemon against different types
+        strengths = [type_ for type_, against_val in zip(types, against) if against_val > 1]
+        weaknesses = [type_ for type_, against_val in zip(types, against) if against_val < 1]
+    
+        # Print the analysis result
+        print(f"Analyzing {pokemon_identifier}")
+        print(f"{name} ({type1} {type2}) is strong against {strengths} but weak against {weaknesses}")
+
+        team.append(str(result[0]))
+    
+    conn.close()
 
     # Analyze the pokemon whose pokedex_number is in "arg"
 
@@ -26,9 +51,10 @@ for i, arg in enumerate(sys.argv):
 answer = input("Would you like to save this team? (Y)es or (N)o: ")
 if answer.upper() == "Y" or answer.upper() == "YES":
     teamName = input("Enter the team name: ")
-
-    # Write the pokemon team to the "teams" table
+    
     print("Saving " + teamName + " ...")
+    
+    conn.close()
 else:
     print("Bye for now!")
 

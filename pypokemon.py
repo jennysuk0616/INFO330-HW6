@@ -1,42 +1,65 @@
-import sqlite3 # This is the package for all sqlite3 access in Python
-import sys # This helps with command-line parameters
+import sqlite3
+import sys
 
-# Connect to the pokemon database
 conn = sqlite3.connect('pokemon.sqlite')
-c = conn.cursor()
+cursor = conn.cursor()
 
-# Take in the Pokedex numbers from command-line arguments
-pokedex_numbers = sys.argv[1:]
+pokemon_ids = sys.argv[1:]
 
-# Analyze each Pokemon against all types
-for number in pokedex_numbers:
-    c.execute("SELECT name, type1, type2, against_bug, against_dark, against_dragon, against_electric, against_fairy, against_fight, against_fire, against_flying, against_ghost, against_grass, against_ground, against_ice, against_normal, against_poison, against_psychic, against_rock, against_steel, against_water FROM pokemon WHERE number=?", (number,))
-    pokemon_data = c.fetchone()
-    name = pokemon_data[0]
-    type1 = pokemon_data[1]
-    type2 = pokemon_data[2]
-    against = []
-    weak = []
-    for i in range(3, 22):
-        if pokemon_data[i] > 1:
-            against.append(c.description[i][0][8:])
-        elif pokemon_data[i] < 1:
-            weak.append(c.description[i][0][8:])
-    print(f"Analyzing {number}")
-    print(f"{name} ({type1} {type2 if type2 else ''}) is strong against {against} but weak against {weak}")
+def analyze_pokemon(pokemon_id):
+    cursor.execute("SELECT name, type1, type2, against_fire, against_water, against_grass, against_electric, against_ice, against_fighting, against_poison, against_ground, against_flying, against_psychic, against_bug, against_rock, against_ghost, against_dragon, against_dark, against_steel, against_fairy FROM pokemon WHERE id = ?", (pokemon_id,))
+    result = cursor.fetchone()
 
-# Ask if the team is worth saving
-save = input("Would you like to save this team? (Y)es or (N)o: ")
-if save.lower() == 'y':
-    # Insert team data into teams table
+    if result:
+        name, type1, type2, *against = result[3:]
+
+        # Determine the strengths and weaknesses of the Pokemon against different types
+        strengths = []
+        weaknesses = []
+
+        types = ['fire', 'water', 'grass', 'electric', 'ice', 'fighting', 'poison', 'ground', 'flying', 'psychic', 'bug', 'rock', 'ghost', 'dragon', 'dark', 'steel', 'fairy']
+
+        for type_, against_val in zip(types, against):
+            if against_val > 1:
+                strengths.append(type_)
+            elif against_val < 1:
+                weaknesses.append(type_)
+
+        
+        print(f"Analyzing {pokemon_id}")
+        print(f"{name} ({type1} {type2}) is strong against {strengths} but weak against {weaknesses}")
+
+        return True
+    else:
+        return False
+
+team_analysis = []
+for pokemon_id in pokemon_ids:
+    if analyze_pokemon(pokemon_id):
+        team_analysis.append(pokemon_id)
+
+
+save_team = input("Would you like to save this team? (Y)es or (N)o: ").lower() == 'y'
+
+if save_team:
     team_name = input("Enter the team name: ")
-    c.execute("INSERT INTO teams (name, pokemon1, pokemon2, pokemon3, pokemon4, pokemon5, pokemon6) VALUES (?, ?, ?, ?, ?, ?, ?)",
-              (team_name, *pokedex_numbers))
-    print(f"Saving Team {team_name} ...")
+    cursor.execute("INSERT INTO teams (name, pokemon_ids) VALUES (?, ?)", (team_name, ' '.join(team_analysis)))
+    conn.commit()
+    print(f"Saving {team_name} ...")
 
-# Commit changes and close the connection
-conn.commit()
 conn.close()
+
+
+# types
+# for loop
+# if else
+
+
+
+
+
+
+
 
 
 
